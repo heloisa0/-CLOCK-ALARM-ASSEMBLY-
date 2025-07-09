@@ -1,0 +1,1253 @@
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001     PROCESSOR   16f877A
+                      00002         RADIX           DEC
+                      00003 
+                      00004 ;---------ARQUIVOS DE DEFINIÇÕES-----------
+                      00005 
+                      00006 #INCLUDE <P16F877A.inc>
+                      00001         LIST
+                      00002 
+                      00003 ;==========================================================================
+                      00004 ;  MPASM PIC16F877A processor include
+                      00005 ; 
+                      00006 ;  (c) Copyright 1999-2011 Microchip Technology, All rights reserved
+                      00007 ;==========================================================================
+                      00008 
+                      00555         LIST
+2007   3F32           00007         __CONFIG        0X3F32
+                      00008 
+0000                  00009         ORG     0X00     ;VETOR DE INÍCIO
+0000   2833           00010         GOTO INICIO  ;VAI PARA INÍCIO
+                      00011 
+0004                  00012         ORG 0X04     ;VETOR DE INTERRUPÇÃO
+0004   2B00           00013         GOTO INTER   ;VAI PARA INTERRUPÇÃO
+                      00014 
+                      00015 ;---------VARIÁVEIS----------
+0020                  00016         ORG     0X20
+0020   3FFF 3FFF      00017 TEMP    RES     2 ;REGISTRADOR TEMPORARIO/CONTA TEMPO DE ATRASO
+                      00018 
+0022   3FFF           00019 USEG    RES 1 ;UNIDADE DE SEGUNDO
+0023   3FFF           00020 DSEG    RES 1 ;DEZENA DE SEGUNDO
+0024   3FFF           00021 UMIN    RES     1 ;UNIDADE DE MINUTO
+0025   3FFF           00022 DMIN    RES 1 ;DEZENA DE MINUTO
+0026   3FFF           00023 UHOR    RES     1 ;UNIDADE DE HORA
+0027   3FFF           00024 DHOR    RES     1 ;DEZENA DE HORA
+                      00025 
+0028   3FFF           00026 USEGA   RES 1 ;UNIDADE DE SEGUNDO DO ALARME
+0029   3FFF           00027 DSEGA   RES 1 ;DEZENA DE SEGUNDO DO ALARME
+002A   3FFF           00028 UMINA   RES     1 ;UNIDADE DE MINUTO DO ALARME
+002B   3FFF           00029 DMINA   RES 1 ;DEZENA DE MINUTO DO ALARME
+002C   3FFF           00030 UHORA   RES     1 ;UNIDADE DE HORA DO ALARME
+002D   3FFF           00031 DHORA   RES     1 ;DEZENA DE HORA DO ALARME
+                      00032 
+002E   3FFF 3FFF      00033 DSEGRE  RES     2 ;REGISTRADOR EXTRA/MEIO SEGUNDO
+                      00034 
+0030   3FFF           00035 W_TEMP  RES 1 ;SALVA W
+0031   3FFF           00036 S_TEMP  RES 1 ;SALVA STATUS
+                      00037 
+0032   3FFF           00038 FLAGS   RES 1 ;0-PONTO,1-HORAMIN E MINSEG,2-ALARME,4-PONTO DE ALARME ATIVO
+                      00039 
+                      00040 ;---------INÍCIO DE PROGRAMA---------
+0033                  00041 INICIO
+0033   1683 1303      00042         BANKSEL TRISD
+0035   3000           00043         MOVLW   00000000B     ; TODOS OS PINOS DA PORTA C,D E A SÃO SAÍDAS
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0036   0087           00044     MOVWF   TRISC
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0037   0088           00045         MOVWF   TRISD
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0038   0085           00046         MOVWF   TRISA
+0039   30FF           00047         MOVLW   11111111B     ; TODOS OS PINOS DA PORTA B SÃO ENTRADAS
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+003A   0086           00048         MOVWF   TRISB
+003B   3006           00049         MOVLW   0X06
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+003C   009F           00050         MOVWF   ADCON1
+                      00051         
+                      00052 
+003D   1283 1303      00053         BANKSEL PORTD         ;  PORTAS C,D E A NIVEL BAIXO
+003F   3000           00054         MOVLW   00000000B
+0040   0087           00055     MOVWF   PORTC
+0041   0088           00056         MOVWF   PORTD
+0042   0085           00057         MOVWF   PORTA
+0043   0086           00058     MOVWF       PORTB
+                      00059 
+0044   1283 1303      00060         BANKSEL T1CON
+0046   1610           00061     BSF     T1CON,4       ; CONFIGURA TIMER1 COM PRESCALER = 1:8 (BIT T1CKPS1)
+0047   1690           00062     BSF     T1CON,5       ; CONFIGURA TIMER1 COM PRESCALER = 1:8 (BIT T1CKPS1)
+0048   1410           00063     BSF     T1CON,TMR1ON  ; LIGA O TIMER1
+                      00064 
+0049   1683 1303      00065     BANKSEL PIE1
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+004B   140C           00066     BSF     PIE1,TMR1IE   ; HABILITA INTERRUPÇÃO DO TIMER1
+                      00067 
+004C   1283 1303      00068     BANKSEL INTCON
+004E   170B           00069     BSF     INTCON,PEIE   ; HABILITA INTERRUPÇÕES DOS PERIFÉRICOS
+004F   178B           00070     BSF     INTCON,GIE    ; HABILITA INTERRUPÇÃO GLOBAL
+                      00071 
+                      00072 
+                      00073 ;----------LIMPANDO E SETANDO VARIÁVEIS------------
+0050   01A2           00074         CLRF    USEG
+0051   01A3           00075         CLRF    DSEG
+0052   01A4           00076         CLRF    UMIN
+0053   01A5           00077         CLRF    DMIN
+0054   01A6           00078         CLRF    UHOR
+0055   01A7           00079         CLRF    DHOR
+0056   01AE           00080     CLRF        DSEGRE
+0057   018E           00081         CLRF    TMR1L
+0058   018F           00082         CLRF    TMR1H
+0059   01B2           00083         CLRF    FLAGS
+                      00084 
+005A   14B2           00085         BSF             FLAGS,1
+                      00086 
+                      00087 ;---------ROTINA PRINCIPAL--------------
+005B                  00088 LOOP
+                      00089 
+                      00090 ;RB0
+005B   1806           00091         BTFSC   PORTB,0        ; SE BOTAO ATIVADO(0), PULA A PRÓXIMA INSTRUÇÃO; SE BOTÃO NÃO FOI APERTAD
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                            O(1),VAI PARA RB3
+005C   2863           00092         GOTO    $+7            ; VAI PARA RB3
+005D   1C06           00093         BTFSS   PORTB,0        ; BOTÃO AINDA PRESSIONADO(0)?
+005E   285D           00094         GOTO    $-1            ; SIM. VOLTA PARA A VERIFICAÇÃO
+                      00095         
+                      00096 
+                      00097 ;AJUSTA O TEMPO
+005F   3006           00098     MOVLW       00000110B      ; CARREGA EM W O VALOR PARA CONFIGURAR PCLATH PARA CHAMAR A SUB-ROTINA DE
+                             AJUSTE
+0060   008A           00099     MOVWF       PCLATH         ; MOVE O VALOR DE W PARA O REGISTRADOR PCLATH (SELECIONA A PÁGINA DE MEMÓ
+                            RIA DA SUB-ROTINA)
+0061   2600           00100     CALL        AJUSTE         ; CHAMA A SUB-ROTINA RESPONSÁVEL PELO AJUSTE DE HORAS E MINUTOS
+0062   018A           00101     CLRF        PCLATH         ; LIMPA PCLATH APÓS O RETORNO DA SUB-ROTINA
+                      00102 
+                      00103 
+                      00104 ;RB3
+0063   3002           00105         MOVLW   00000010B       ; CARREGA EM W O VALOR BINÁRIO PARA CONFIGURAR A TROCA DE MODO DE EXIBIÇ
+                            ÃO
+0064   1986           00106         BTFSC   PORTB,3         ; SE BOTAO ATIVADO(0), PULA A PRÓXIMA INSTRUÇÃO; SE BOTÃO NÃO FOI APERTA
+                            DO(1),VAI PARA RB5
+0065   2869           00107         GOTO    $+4
+0066   1D86           00108         BTFSS   PORTB,3         ; BOTÃO AINDA PRESSIONADO(0)?
+0067   2866           00109         GOTO    $-1             ; SIM. VOLTA PARA A VERIFICAÇÃO
+0068   06B2           00110         XORWF   FLAGS,F         ; INVERTE O BIT 1 DO REGISTRADOR FLAGS. ALTERNA O BIT DE MODO DE EXIBIÇÃ
+                            O (EX: DE HORA:MINUTO PARA MINUTO:SEGUNDO)
+                      00111 
+                      00112 
+                      00113 ;RB5
+0069   1A86           00114     BTFSC       PORTB,5         ; SE BOTAO ATIVADO(0), PULA A PRÓXIMA INSTRUÇÃO; SE BOTÃO NÃO FOI APERTA
+                            DO(1),VAI PARA RB4
+006A   286E           00115     GOTO        $+4     
+006B   1E86           00116     BTFSS       PORTB,5         ; BOTÃO AINDA PRESSIONADO(0)?
+006C   286B           00117     GOTO        $-1             ; SIM. VOLTA PARA A VERIFICAÇÃO
+006D   1532           00118     BSF FLAGS,2             ; SETA O BIT 2 DO REGISTRADOR FLAGS ( OU SEJA, ATIVA ALARME)
+                      00119 
+                      00120 ;RB4
+006E   1A06           00121     BTFSC       PORTB,4         ; SE BOTAO ATIVADO(0), PULA A PRÓXIMA INSTRUÇÃO; SE BOTÃO NÃO FOI APERTA
+                            DO(1),VAI PARA "CALL TIMER"
+006F   2873           00122     GOTO        $+4    
+0070   1E06           00123     BTFSS       PORTB,4         ; BOTÃO AINDA PRESSIONADO(0)?
+0071   2870           00124     GOTO        $-1             ; SIM. VOLTA PARA A VERIFICAÇÃO
+0072   1087           00125     BCF     PORTC,1         ; CLEAR O BIT 1 DA PORTA C ( OU SEJA, DESLIGA O BUZZER)
+                      00126 
+                      00127 ;CHAMA FUNÇAO PARA AUMENTAR TEMPO
+                      00128 
+0073   3004           00129         MOVLW   00000100B       ; CARREGA EM W O VALOR BINÁRIO PARA SELECIONAR A PÁGINA DE MEMÓRIA DA SU
+                            B-ROTINA TIMER
+0074   008A           00130         MOVWF   PCLATH          ; MOVE O VALOR DE W PARA O REGISTRADOR PCLATH (SELECIONA A PÁGINA PARA C
+                            HAMADA DA SUB-ROTINA)
+0075   2400           00131         CALL    TIMER           ; CHAMA A SUB-ROTINA TIMER RESPONSÁVEL PELO CONTROLE DE TEMPO (INCREMENT
+                            O DO RELÓGIO)
+0076   018A           00132         CLRF    PCLATH          ; LIMPA O REGISTRADOR PCLATH APÓS O RETORNO DA SUB-ROTINA
+                      00133 
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00134 
+                      00135 ;CHAMA FUNÇAO PARA EXIBIR DISPLAY
+                      00136 
+0077   3002           00137         MOVLW   00000010B       ; CARREGA EM W O VALOR BINÁRIO PARA SELECIONAR A PÁGINA DE MEMÓRIA DA SU
+                            B-ROTINA DISPLAY
+0078   008A           00138         MOVWF   PCLATH          ; MOVE O VALOR DE W PARA O REGISTRADOR PCLATH (SELECIONA A PÁGINA PARA C
+                            HAMADA DA SUB-ROTINA)
+0079   2200           00139         CALL    DISPLAY         ; CHAMA A SUB-ROTINA DISPLAY RESPONSÁVEL POR ATUALIZAR OS DÍGITOS NO DIS
+                            PLAY DE 7 SEGMENTOS
+007A   018A           00140         CLRF    PCLATH          ; LIMPA O REGISTRADOR PCLATH APÓS O RETORNO DA SUB-ROTINA
+                      00141 
+                      00142 
+007B   285B           00143         GOTO    LOOP  
+                      00144 
+                      00145 ;-----------TEMPO QUE OS DISPLAYS PERMANECEM ACESSOS------------
+007C                  00146 ATRASO
+007C   3064           00147     MOVLW   100
+007D   00A0           00148     MOVWF   TEMP
+007E                  00149 ATRASO_LOOP:
+007E   0000           00150     NOP
+007F   0000           00151     NOP
+0080   0BA0           00152     DECFSZ  TEMP, F
+0081   287E           00153     GOTO    ATRASO_LOOP
+0082   0008           00154     RETURN
+                      00155 
+                      00156 
+                      00157 ;-----------LIGA O DISPLAY-------------
+0200                  00158         ORG     0X200
+0200                  00159 DISPLAY
+                      00160 
+0200   1105           00161     BCF     PORTA,2         ; DESLIGA DISPLAY 1
+0201   1685           00162     BSF     PORTA,5         ; LIGA DISPLAY 4
+0202   3005           00163     MOVLW   00000101B       ; CONFIGURA PCLATH PARA ACESSAR SUB-ROTINA EM OUTRA PÁGINA
+0203   008A           00164     MOVWF   PCLATH          ; AJUSTA PCLATH PARA ACESSO À SUB-ROTINA BCD27SEG
+0204   0824           00165     MOVF    UMIN,W          ; MOVE UNIDADE DE MINUTO PARA W
+0205   1CB2           00166     BTFSS   FLAGS,1         ; SE BIT 1 DE FLAGS ESTIVER SETADO (MODO HH:MM), PULA PRÓXIMA INSTRUÇÃO
+0206   0822           00167     MOVF    USEG,W          ; SENÃO, USA UNIDADE DE SEGUNDO (MODO MM:SS)
+0207   2500           00168     CALL    BCD27SEG        ; CONVERTE DADO BINÁRIO PARA FORMATO DE 7 SEGMENTOS
+0208   0088           00169     MOVWF   PORTD           ; ENVIA VALOR PARA O DISPLAY
+0209   1A32           00170     BTFSC   FLAGS,4         ; SE BIT 4 ESTIVER SETADO, ATIVA O PONTO DECIMAL (DP)
+020A   1788           00171     BSF     PORTD,7         ; ATIVA SEGMENTO DP
+020B   018A           00172     CLRF    PCLATH          ; LIMPA PCLATH APÓS A CHAMADA
+020C   207C           00173     CALL    ATRASO          ; MANTÉM DISPLAY LIGADO POR UM TEMPO
+020D   3005           00174     MOVLW   00000101B       ; PREPARA NOVAMENTE O PCLATH PARA PRÓXIMA CHAMADA
+020E   008A           00175     MOVWF   PCLATH
+                      00176 
+020F   1285           00177     BCF     PORTA,5         ; DESLIGA DISPLAY 4
+0210   1605           00178     BSF     PORTA,4         ; LIGA DISPLAY 3
+0211   0825           00179     MOVF    DMIN,W          ; MOVE DEZENA DE MINUTO PARA W
+0212   1CB2           00180     BTFSS   FLAGS,1         ; SE MODO HH:MM ESTIVER ATIVO, PULA PRÓXIMA
+0213   0823           00181     MOVF    DSEG,W          ; SENÃO, USA DEZENA DE SEGUNDO
+0214   2500           00182     CALL    BCD27SEG        ; CONVERTE PARA 7 SEGMENTOS
+0215   0088           00183     MOVWF   PORTD           ; EXIBE NO DISPLAY
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0216   018A           00184     CLRF    PCLATH          ; LIMPA PCLATH
+0217   207C           00185     CALL    ATRASO          ; MANTÉM DISPLAY 3 ACESO
+0218   3005           00186     MOVLW   00000101B       ; CONFIGURA PCLATH NOVAMENTE
+0219   008A           00187     MOVWF   PCLATH
+                      00188 
+021A   1205           00189     BCF     PORTA,4         ; DESLIGA DISPLAY 3
+021B   1585           00190     BSF     PORTA,3         ; LIGA DISPLAY 2
+021C   0826           00191     MOVF    UHOR,W          ; MOVE UNIDADE DE HORA PARA W
+021D   1CB2           00192     BTFSS   FLAGS,1         ; SE MODO HH:MM ATIVO, PULA PRÓXIMA
+021E   0824           00193     MOVF    UMIN,W          ; SENÃO, MOSTRA UNIDADE DE MINUTO
+021F   2500           00194     CALL    BCD27SEG        ; CONVERTE PARA 7 SEGMENTOS
+0220   0088           00195     MOVWF   PORTD           ; ENVIA PARA O DISPLAY
+0221   1CB2           00196     BTFSS   FLAGS,1         ; SE MODO HH:MM ATIVO, SEGUE PARA VERIFICAÇÃO DO PONTO
+0222   2A23           00197     GOTO    $+1             ; PULA AS INSTRUÇÕES DE CONTROLE DE DP SE NÃO FOR HH:MM
+0223   1832           00198     BTFSC   FLAGS,0         ; SE BIT 0 ESTIVER ATIVO, LIGA DP
+0224   1788           00199     BSF     PORTD,7         ; ATIVA SEGMENTO DP
+0225   1C32           00200     BTFSS   FLAGS,0         ; SE BIT 0 NÃO ESTIVER ATIVO
+0226   1388           00201     BCF     PORTD,7         ; DESLIGA SEGMENTO DP
+0227   018A           00202     CLRF    PCLATH          ; LIMPA PCLATH
+0228   207C           00203     CALL    ATRASO          ; MANTÉM DISPLAY 2 LIGADO
+0229   3005           00204     MOVLW   00000101B       ; CONFIGURA PCLATH PARA PRÓXIMA CHAMADA
+022A   008A           00205     MOVWF   PCLATH
+                      00206 
+                      00207 
+022B   1185           00208     BCF     PORTA,3         ; DESLIGA DISPLAY 2
+022C   1505           00209     BSF     PORTA,2         ; LIGA DISPLAY 1
+022D   0827           00210     MOVF    DHOR,W          ; MOVE DEZENA DE HORA PARA W
+022E   1CB2           00211     BTFSS   FLAGS,1         ; SE BIT 1 DA FLAGS FOR SETADO, PULA A PRÓXIMA
+022F   0825           00212     MOVF    DMIN,W          ; SENÃO, USA A DEZENA DOS MINUTOS
+0230   2500           00213     CALL    BCD27SEG        ; CONVERTE PARA 7 SEGMENTOS
+0231   0088           00214     MOVWF   PORTD           ; EXIBE NO DISPLAY
+0232   018A           00215     CLRF    PCLATH          ; LIMPA PCLATH
+0233   207C           00216     CALL    ATRASO          ; MANTÉM DISPLAY 1 ACESO
+                      00217         
+0234   0008           00218     RETURN
+                      00219 
+                      00220 
+                      00221 
+                      00222 ;-----------INTERRUPÇAO---------
+0300                  00223         ORG     0X300
+0300                  00224 INTER
+0300   00B0           00225         MOVWF   W_TEMP          ; SALVA CONTEXTO
+0301   0E03           00226         SWAPF   STATUS,W
+0302   00B1           00227         MOVWF   S_TEMP
+                      00228 
+0303   300B           00229         MOVLW   3036/256        ; CARREGA A PARTE ALTA DO VALOR DE INICIALIZAÇÃO DO TIMER1 (RELOAD)
+0304   008F           00230         MOVWF   TMR1H           ; ESCREVE NA PARTE ALTA DO TIMER1
+0305   30DC           00231         MOVLW   3036%256        ; CARREGA A PARTE BAIXA DO VALOR DE INICIALIZAÇÃO DO TIMER1 (RELOAD)
+0306   008E           00232         MOVWF   TMR1L           ; ESCREVE NA PARTE BAIXA DO TIMER1
+                      00233 
+0307   100C           00234     BCF     PIR1, TMR1IF    ; LIMPA FLAG DE INTERR
+0308   0AAE           00235     INCF    DSEGRE,F
+                      00236 
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00237 
+                      00238     ; RESTAURA CONTEXTO
+0309   0E31           00239     SWAPF   S_TEMP, W
+030A   0083           00240     MOVWF   STATUS
+030B   0EB0           00241     SWAPF   W_TEMP, F
+030C   0E30           00242     SWAPF   W_TEMP, W
+                      00243 
+030D   0009           00244     RETFIE
+                      00245 
+                      00246 
+                      00247 ;-----------CONTAGEM DO TEMPO------------
+0400                  00248    Org 0x0400
+0400                  00249 TIMER:
+                      00250    ; CONTADOR DE MEIO SEGUNDO
+0400   1003           00251     BCF         STATUS,C
+0401   082E           00252     movf    DSEGRE, w
+0402   3A02           00253     xorlw   2
+0403   1D03           00254     btfss   STATUS, Z
+0404   2C09           00255     goto    $+5
+                      00256 
+                      00257     ; ZERAR MEIOSEG E INCREMENTAR USEG
+0405   01AE           00258     CLRF    DSEGRE
+0406   0AA2           00259     INCF    USEG, F
+                      00260 
+0407   3001           00261     MOVLW       00000001B
+0408   06B2           00262         XORWF   FLAGS,F; FAZ O PONTO PISCAR
+                      00263    
+0409   0822           00264     MOVF    USEG, W
+040A   3A0A           00265     XORLW   10
+040B   1D03           00266     BTFSS   STATUS, Z
+040C   2C0F           00267     GOTO    $+3
+                      00268 
+040D   01A2           00269     CLRF    USEG
+040E   0AA3           00270     INCF    DSEG, F
+                      00271 
+040F   0823           00272     MOVF    DSEG, W
+0410   3A06           00273     XORLW   6
+0411   1D03           00274     BTFSS   STATUS, Z
+0412   2C15           00275     GOTO    $+3
+                      00276 
+0413   01A3           00277     CLRF    DSEG
+0414   0AA4           00278     INCF    UMIN, F
+0415   0824           00279     MOVF    UMIN, W
+0416   3A0A           00280     XORLW   10
+0417   1D03           00281     BTFSS   STATUS, Z
+0418   2C1B           00282     GOTO    $+3
+                      00283 
+0419   01A4           00284     CLRF    UMIN
+041A   0AA5           00285     INCF    DMIN, F
+041B   0825           00286     MOVF    DMIN, W
+041C   3A06           00287     XORLW   6
+041D   1D03           00288     BTFSS   STATUS, Z
+041E   2C21           00289     GOTO    $+3
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00290 
+041F   01A5           00291     CLRF    DMIN
+0420   0AA6           00292     INCF    UHOR, F
+0421   0826           00293     MOVF    UHOR, W
+0422   3A0A           00294     XORLW   10
+0423   1D03           00295     BTFSS   STATUS, Z
+0424   2C27           00296     GOTO    $+3
+                      00297 
+0425   01A6           00298     CLRF    UHOR
+0426   0AA7           00299     INCF    DHOR, F
+0427   0827           00300     MOVF    DHOR,W
+0428   3A02           00301     XORLW   2                ; VERIFICA SE DHOR CHEGOU A 2
+0429   1D03           00302     BTFSS   STATUS,Z
+042A   2C31           00303     GOTO    $+7              ; SE NÃO, PULA A VERIFICAÇÃO A SEGUIR
+                      00304 
+042B   0826           00305     MOVF    UHOR,W
+042C   3A04           00306     XORLW   4                ; SE DHOR = 2, VERIFICA SE UHOR = 4 (24 HORAS)
+042D   1D03           00307     BTFSS   STATUS,Z
+042E   2C31           00308     GOTO    $+3
+                      00309 
+042F   01A7           00310     CLRF    DHOR             ; ZERA DHOR
+0430   01A6           00311     CLRF    UHOR             ; ZERA UHOR
+                      00312 
+                      00313     ; VERIFICA SE O ALARME FOI ATIVADO (FLAG 2 SETADA)
+0431   1932           00314     BTFSC   FLAGS,2          
+0432   2EFB           00315     GOTO    ATIVA_ALARME     ; SE FLAG 2 SETADA, CHAMA ROTINA DO ALARME
+                      00316 
+Warning[203]: Found opcode in column 1. (RETURN)
+0433   0008           00317 RETURN 
+                      00318 
+                      00319 
+                      00320 ;-------------BCD27SEG----------------
+0500                  00321         ORG     0X500
+0500                  00322 BCD27SEG
+0500   390F           00323         ANDLW   00001111B
+0501   0782           00324         ADDWF   PCL,F
+                      00325                    ;PGFEDCBA
+0502   343F           00326         RETLW   00111111B ;0
+0503   3406           00327         RETLW   00000110B ;1
+0504   345B           00328         RETLW   01011011B ;2
+0505   344F           00329         RETLW   01001111B ;3
+0506   3466           00330         RETLW   01100110B ;4
+0507   346D           00331         RETLW   01101101B ;5
+0508   347D           00332         RETLW   01111101B ;6
+0509   3407           00333         RETLW   00000111B ;7
+050A   347F           00334         RETLW   01111111B ;8
+050B   346F           00335         RETLW   01101111B ;9
+                      00336 
+                      00337 
+                      00338 ;-------------AJUSTE------------
+0600                  00339         ORG     0X600
+                      00340         
+0600                  00341 AJUSTE
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  8
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0600   1010           00342         BCF     T1CON,0         ; DESLIGA TEMPORARIAMENTE O TIMER1 PARA AJUSTE MANUAL
+0601   1505           00343         BSF     PORTA,2         ; ATIVA O DISPLAY 1 PARA AJUSTE DA DEZENA DA HORA
+                      00344 
+0602   3065           00345 #F      MOVLW   00000101                ; CONFIGURA PCLATH PARA CHAMADA DE SUB-ROTINA EM OUTRA PÁGINA
+0603   008A           00346         MOVWF   PCLATH
+0604   1905           00347         BTFSC   PORTA,2
+0605   0827           00348         MOVF    DHOR,W          ; SE DISPLAY 1 ESTIVER ATIVO, MOSTRA DEZENA DA HORA
+0606   1985           00349         BTFSC   PORTA,3
+0607   0826           00350         MOVF    UHOR,W          ; SE DISPLAY 2 ESTIVER ATIVO, MOSTRA UNIDADE DA HORA
+0608   1A05           00351         BTFSC   PORTA,4
+0609   0825           00352         MOVF    DMIN,W          ; SE DISPLAY 3 ESTIVER ATIVO, MOSTRA DEZENA DO MINUTO
+060A   1A85           00353         BTFSC   PORTA,5
+060B   0824           00354         MOVF    UMIN,W          ; SE DISPLAY 4 ESTIVER ATIVO, MOSTRA UNIDADE DO MINUTO
+060C   2500           00355         CALL    BCD27SEG                ; CONVERTE PARA 7 SEGMENTOS
+060D   0088           00356         MOVWF   PORTD           ; EXIBE NO DISPLAY
+060E   0820           00357         MOVF    TEMP,W
+060F   008A           00358         MOVWF   PCLATH
+                      00359 
+                      00360 ;--------RB2-INCREMENTA--------
+0610   1906           00361         BTFSC   PORTB,2
+0611   2E1C           00362         GOTO    $+11            ; PULA O BLOCO SE RB2 NÃO FOR PRESSIONADO
+0612   1D06           00363         BTFSS   PORTB,2
+0613   2E12           00364         GOTO    $-1             ; ESPERA O BOTÃO SER SOLTO (DEBOUNCE)
+0614   1905           00365         BTFSC   PORTA,2
+0615   0AA7           00366         INCF    DHOR,F          ; INCREMENTA DEZENA DA HORA
+0616   1985           00367         BTFSC   PORTA,3
+0617   0AA6           00368         INCF    UHOR,F          ; INCREMENTA UNIDADE DA HORA
+0618   1A05           00369         BTFSC   PORTA,4
+0619   0AA5           00370         INCF    DMIN,F          ; INCREMENTA DEZENA DO MINUTO
+061A   1A85           00371         BTFSC   PORTA,5
+061B   0AA4           00372         INCF    UMIN,F          ; INCREMENTA UNIDADE DO MINUTO
+                      00373 
+                      00374 ;--------RB1-DECREMENTA--------
+061C   1886           00375         BTFSC   PORTB,1
+061D   2E28           00376         GOTO    $+11
+061E   1C86           00377         BTFSS   PORTB,1
+061F   2E1E           00378         GOTO    $-1
+0620   1905           00379         BTFSC   PORTA,2
+0621   03A7           00380         DECF    DHOR,F          ; DECREMENTA DEZENA DA HORA
+0622   1985           00381         BTFSC   PORTA,3
+0623   03A6           00382         DECF    UHOR,F          ; DECREMENTA UNIDADE DA HORA
+0624   1A05           00383         BTFSC   PORTA,4
+0625   03A5           00384         DECF    DMIN,F          ; DECREMENTA DEZENA DO MINUTO
+0626   1A85           00385         BTFSC   PORTA,5
+0627   03A4           00386         DECF    UMIN,F          ; DECREMENTA UNIDADE DO MINUTO
+                      00387 
+                      00388 ;-----CONFERE VALOR DO TIMER (LIMITE SUPERIOR)---------
+0628   0824           00389         MOVF    UMIN,W
+0629   3A0A           00390         XORLW   10
+062A   1903           00391         BTFSC   STATUS,Z
+062B   01A4           00392         CLRF    UMIN            ; SE UMIN == 10, ZERA (SÓ VAI ATÉ 9)
+                      00393 
+062C   0825           00394         MOVF    DMIN,W
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE  9
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+062D   3A06           00395         XORLW   6
+062E   1903           00396         BTFSC   STATUS,Z
+062F   01A5           00397         CLRF    DMIN            ; SE DMIN == 6, ZERA (SÓ VAI ATÉ 5)
+                      00398 
+0630   0827           00399         MOVF    DHOR,W
+0631   3A03           00400         XORLW   3
+0632   1903           00401         BTFSC   STATUS,Z
+0633   01A7           00402         CLRF    DHOR            ; SE DHOR == 3, ZERA (SÓ VAI ATÉ 2)
+                      00403 
+0634   0827           00404         MOVF    DHOR,W
+0635   3A02           00405         XORLW   2
+0636   1D03           00406         BTFSS   STATUS,Z
+0637   2E3D           00407         GOTO    $+6             ; SE DHOR ? 2, PULA VERIFICAÇÃO
+0638   0826           00408         MOVF    UHOR,W
+0639   3A04           00409         XORLW   4
+063A   1903           00410         BTFSC   STATUS,Z
+063B   01A6           00411         CLRF    UHOR            ; SE UHOR == 4 E DHOR == 2 ? PASSARIA DE 23, ZERA UHORA
+063C   2E41           00412         GOTO    $+5
+063D   0826           00413         MOVF    UHOR,W
+063E   3A0A           00414         XORLW   10
+063F   1903           00415         BTFSC   STATUS,Z
+0640   01A6           00416         CLRF    UHOR            ; SE UHOR == 10, ZERA
+                      00417 
+                      00418 ;---- CHECA VALORES INVÁLIDOS (-1 = 255) E CORRIGE --------
+0641   0824           00419         MOVF    UMIN,W
+0642   3AFF           00420         XORLW   0xFF
+0643   1D03           00421         BTFSS   STATUS,Z
+0644   2E47           00422         GOTO    $+3
+0645   3009           00423         MOVLW   9
+0646   00A4           00424         MOVWF   UMIN            ; SE UMIN = -1, VOLTA PARA 9
+                      00425 
+0647   0825           00426         MOVF    DMIN,W
+0648   3AFF           00427         XORLW   0xFF
+0649   1D03           00428         BTFSS   STATUS,Z
+064A   2E4D           00429         GOTO    $+3
+064B   3005           00430         MOVLW   5
+064C   00A5           00431         MOVWF   DMIN            ; SE DMIN = -1, VOLTA PARA 5
+                      00432 
+064D   0827           00433         MOVF    DHOR,W
+064E   3AFF           00434         XORLW   0xFF
+064F   1D03           00435         BTFSS   STATUS,Z
+0650   2E53           00436         GOTO    $+3
+0651   3002           00437         MOVLW   2
+0652   00A7           00438         MOVWF   DHOR            ; SE DHOR = -1, VOLTA PARA 2
+                      00439 
+0653   0827           00440         MOVF    DHOR,W
+0654   3A02           00441         XORLW   2
+0655   1D03           00442         BTFSS   STATUS,Z
+0656   2E5E           00443         GOTO    $+8             ; SE DHOR ? 2, PULA VERIFICAÇÃO ADICIONAL
+0657   0826           00444         MOVF    UHOR,W
+0658   3AFF           00445         XORLW   0xFF
+0659   1D03           00446         BTFSS   STATUS,Z
+065A   2E5D           00447         GOTO    $+3
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 10
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+065B   3003           00448         MOVLW   3
+065C   00A6           00449         MOVWF   UHOR            ; SE UHOR = -1 E DHOR = 2, VOLTA PARA 3
+065D   2E64           00450         GOTO    $+7
+065E   0826           00451         MOVF    UHOR,W
+065F   3AFF           00452         XORLW   0xFF
+0660   1D03           00453         BTFSS   STATUS,Z
+0661   2E64           00454         GOTO    $+3
+0662   3009           00455         MOVLW   9
+0663   00A6           00456         MOVWF   UHOR            ; SE UHOR = -1 E DHOR ? 2, VOLTA PARA 9
+                      00457 
+                      00458 ;--------------RB0 - AVANÇA AJUSTE-----------------
+0664   1806           00459         BTFSC   PORTB,0
+0665   2E7D           00460         GOTO    $+24
+0666   1C06           00461         BTFSS   PORTB,0
+0667   2E66           00462         GOTO    $-1
+                      00463 
+                      00464 ;------ VERIFICA SE HORA É VÁLIDA (CASO UHOR=3 E DHOR=2)--------
+0668   1D05           00465         BTFSS   PORTA,2
+0669   2E72           00466         GOTO    $+9
+066A   0827           00467         MOVF    DHOR,W
+066B   3A02           00468         XORLW   2
+066C   1D03           00469         BTFSS   STATUS,Z
+066D   2E72           00470         GOTO    $+5
+066E   0826           00471         MOVF    UHOR,W
+066F   3C04           00472         SUBLW   4
+0670   1C03           00473         BTFSS   STATUS,C
+0671   01A6           00474         CLRF    UHOR            ; SE UHOR > 3 E DHOR = 2, ZERA UHOR
+                      00475 
+                      00476 ;-----------------------------------
+0672   1003           00477         BCF         STATUS,C
+0673   0D85           00478         RLF     PORTA,F         ; RODA DISPLAY PARA PRÓXIMA POSIÇÃO
+                      00479 
+0674   1F05           00480         BTFSS   PORTA,6
+0675   2E7D           00481         GOTO    $+8
+0676   1410           00482         BSF         T1CON,0             ; RELIGA O TIMER
+0677   3000           00483         MOVLW   0
+0678   00AE           00484         MOVWF   DSEGRE
+0679   00A2           00485         MOVWF   USEG
+067A   00A3           00486         MOVWF   DSEG
+                      00487 
+067B   2E7E           00488         GOTO    AJUSTE_ALARME
+067C   0008           00489         RETURN
+                      00490 
+067D   2E02           00491         GOTO    #F
+                      00492 
+                      00493 ;-------AJUSTE PARA ALARME--------
+                      00494 
+067E                  00495 AJUSTE_ALARME
+                      00496     
+067E   1010           00497     BCF         T1CON,0
+067F   1505           00498         BSF             PORTA,2
+                      00499         
+0680   3065           00500 #G      MOVLW   00000101
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 11
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0681   008A           00501         MOVWF   PCLATH
+0682   1905           00502         BTFSC   PORTA,2
+0683   082D           00503         MOVF    DHORA,W
+0684   1985           00504         BTFSC   PORTA,3
+0685   082C           00505         MOVF    UHORA,W
+0686   1A05           00506         BTFSC   PORTA,4
+0687   082B           00507         MOVF    DMINA,W
+0688   1A85           00508         BTFSC   PORTA,5
+0689   082A           00509         MOVF    UMINA,W
+068A   2500           00510         CALL    BCD27SEG
+068B   0088           00511         MOVWF   PORTD
+068C   0820           00512         MOVF    TEMP,W
+068D   008A           00513         MOVWF   PCLATH
+                      00514 
+                      00515 ;--------RB2-INCREMENTA--------
+068E   1906           00516         BTFSC   PORTB,2
+068F   2E9A           00517         GOTO    $+11
+                      00518 
+0690   1D06           00519         BTFSS   PORTB,2
+0691   2E90           00520         GOTO    $-1
+0692   1905           00521         BTFSC   PORTA,2
+0693   0AAD           00522         INCF    DHORA,F
+0694   1985           00523         BTFSC   PORTA,3
+0695   0AAC           00524         INCF    UHORA,F
+0696   1A05           00525         BTFSC   PORTA,4
+0697   0AAB           00526         INCF    DMINA,F
+0698   1A85           00527         BTFSC   PORTA,5
+0699   0AAA           00528         INCF    UMINA,F
+                      00529 
+                      00530 
+                      00531 ;--------RB1-DECREMENTA--------
+069A   1886           00532         BTFSC   PORTB,1
+069B   2EA6           00533         GOTO    $+11
+                      00534 
+069C   1C86           00535         BTFSS   PORTB,1
+069D   2E9C           00536         GOTO    $-1
+069E   1905           00537         BTFSC   PORTA,2
+069F   03AD           00538         DECF    DHORA,F
+06A0   1985           00539         BTFSC   PORTA,3
+06A1   03AC           00540         DECF    UHORA,F
+06A2   1A05           00541         BTFSC   PORTA,4
+06A3   03AB           00542         DECF    DMINA,F
+06A4   1A85           00543         BTFSC   PORTA,5
+06A5   03AA           00544         DECF    UMINA,F
+                      00545 
+                      00546 
+                      00547 ;-----CONFERE VALOR DO TIMER---------
+06A6   082A           00548         MOVF    UMINA,W
+06A7   3A0A           00549         XORLW   10
+06A8   1903           00550         BTFSC   STATUS,Z
+06A9   01AA           00551         CLRF    UMINA
+                      00552 
+06AA   082B           00553         MOVF    DMINA,W
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 12
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+06AB   3A06           00554         XORLW   6
+06AC   1903           00555         BTFSC   STATUS,Z
+06AD   01AB           00556         CLRF    DMINA
+                      00557 
+06AE   082D           00558         MOVF    DHORA,W
+06AF   3A03           00559         XORLW   3
+06B0   1903           00560         BTFSC   STATUS,Z
+06B1   01AD           00561         CLRF    DHORA
+                      00562 
+06B2   082D           00563         MOVF    DHORA,W
+06B3   3A02           00564         XORLW   2
+06B4   1D03           00565         BTFSS   STATUS,Z
+06B5   2EBB           00566         GOTO    $+6
+                      00567         
+06B6   082C           00568         MOVF    UHORA,W
+06B7   3A04           00569         XORLW   4
+06B8   1903           00570         BTFSC   STATUS,Z
+06B9   01AC           00571         CLRF    UHORA
+06BA   2EBF           00572         GOTO    $+5
+                      00573 
+06BB   082C           00574         MOVF    UHORA,W
+06BC   3A0A           00575         XORLW   10
+06BD   1903           00576         BTFSC   STATUS,Z
+06BE   01AC           00577         CLRF    UHORA
+                      00578 
+                      00579 ;---- CHECA VALORES INVÁLIDOS (-1 = 255) E CORRIGE --------
+06BF   082A           00580         MOVF    UMINA,W
+06C0   3AFF           00581         XORLW   11111111B;
+06C1   1D03           00582         BTFSS   STATUS,Z
+06C2   2EC5           00583         GOTO    $+3
+06C3   3009           00584         MOVLW   9
+06C4   00AA           00585         MOVWF   UMINA
+                      00586 
+06C5   082B           00587         MOVF    DMINA,W
+06C6   3AFF           00588         XORLW   11111111B
+06C7   1D03           00589         BTFSS   STATUS,Z
+06C8   2ECB           00590         GOTO    $+3
+06C9   3005           00591         MOVLW   5
+06CA   00AB           00592         MOVWF   DMINA
+                      00593 
+06CB   082D           00594         MOVF    DHORA,W
+06CC   3AFF           00595         XORLW   11111111B
+06CD   1D03           00596         BTFSS   STATUS,Z
+06CE   2ED1           00597         GOTO    $+3
+06CF   3002           00598         MOVLW   2
+06D0   00AD           00599         MOVWF   DHORA
+                      00600 
+06D1   082D           00601         MOVF    DHORA,W
+06D2   3A02           00602         XORLW   2
+06D3   1D03           00603         BTFSS   STATUS,Z
+06D4   2EDC           00604         GOTO    $+8
+                      00605 
+06D5   082C           00606         MOVF    UHORA,W
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 13
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+06D6   3AFF           00607         XORLW   11111111B
+06D7   1D03           00608         BTFSS   STATUS,Z
+06D8   2EDB           00609         GOTO    $+3
+06D9   3003           00610         MOVLW   3
+06DA   00AC           00611         MOVWF   UHORA
+06DB   2EE2           00612         GOTO    $+7
+                      00613 
+06DC   082C           00614         MOVF    UHORA,W
+06DD   3AFF           00615         XORLW   11111111B
+06DE   1D03           00616         BTFSS   STATUS,Z
+06DF   2EE2           00617         GOTO    $+3
+06E0   3009           00618         MOVLW   9
+06E1   00AC           00619         MOVWF   UHORA
+                      00620 
+                      00621 ;--------------RB0-----------------
+06E2   1806           00622         BTFSC   PORTB,0
+06E3   2EFA           00623         GOTO    $+23
+06E4   1C06           00624         BTFSS   PORTB,0
+06E5   2EE4           00625         GOTO    $-1
+                      00626 
+                      00627 ;VERIFICAÇÃO DA 24H FORMAT
+06E6   1D05           00628         BTFSS   PORTA,2;
+06E7   2EF0           00629         GOTO    $+9
+06E8   082D           00630         MOVF    DHORA,W
+06E9   3A02           00631         XORLW   2
+06EA   1D03           00632         BTFSS   STATUS,Z
+06EB   2EF0           00633         GOTO    $+5
+06EC   082C           00634         MOVF    UHORA,W
+06ED   3C04           00635         SUBLW   4
+06EE   1C03           00636         BTFSS   STATUS,C
+06EF   01AC           00637         CLRF    UHORA
+                      00638 ;-----------------------------------
+                      00639 
+06F0   1003           00640         BCF     STATUS,C
+06F1   0D85           00641         RLF     PORTA,F
+                      00642 
+06F2   1F05           00643         BTFSS   PORTA,6
+06F3   2EFA           00644         GOTO    $+7
+06F4   1410           00645         BSF             T1CON,0
+06F5   3000           00646         MOVLW   0
+06F6   00AF           00647     MOVWF       DSEGRE+1
+06F7   00A8           00648         MOVWF   USEGA
+06F8   00A9           00649         MOVWF   DSEGA
+                      00650         
+06F9   0008           00651         RETURN  
+                      00652         
+06FA   2E80           00653         GOTO    #G
+                      00654 
+                      00655 
+06FB                  00656 ATIVA_ALARME:
+                      00657 
+06FB   1632           00658     BSF     FLAGS,4 ;ATIVA PONTO
+                      00659 
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 14
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00660      ;VERIFICA SEGUNDOS
+06FC   0823           00661     MOVF    DSEG, W
+06FD   0629           00662     XORWF   DSEGA, W
+06FE   1D03           00663     BTFSS   STATUS, Z
+06FF   0008           00664     RETURN
+0700   0822           00665     MOVF    USEG, W
+0701   0628           00666     XORWF   USEGA, W
+0702   1D03           00667     BTFSS   STATUS, Z
+0703   0008           00668     RETURN
+                      00669 
+                      00670     ; VERIFICA MINUTOS
+0704   0825           00671     MOVF    DMIN, W
+0705   062B           00672     XORWF   DMINA, W
+0706   1D03           00673     BTFSS   STATUS, Z
+0707   0008           00674     RETURN
+0708   0824           00675     MOVF    UMIN, W
+0709   062A           00676     XORWF   UMINA, W
+070A   1D03           00677     BTFSS   STATUS, Z
+070B   0008           00678     RETURN
+                      00679 
+                      00680     ; VERIFICA HORAS
+070C   0827           00681     MOVF    DHOR, W
+070D   062D           00682     XORWF   DHORA, W
+070E   1D03           00683     BTFSS   STATUS, Z
+070F   0008           00684     RETURN
+0710   0826           00685     MOVF    UHOR, W
+0711   062C           00686     XORWF   UHORA, W
+0712   1D03           00687     BTFSS   STATUS, Z
+0713   0008           00688     RETURN
+                      00689 
+                      00690     ; SE CHEGOU ATÉ AQUI, RELOGIO BATE COM ALARME
+                      00691     ; ATIVA BUZZER
+0714   1487           00692     BSF     PORTC,1
+                      00693 
+                      00694    
+0715   0008           00695     RETURN
+                      00696     
+                      00697 
+                      00698 ; ------------------------------
+                      00699 
+                      00700         END
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 15
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+#F                                00000602
+#G                                00000680
+ACKDT                             00000005
+ACKEN                             00000004
+ACKSTAT                           00000006
+ADCON0                            0000001F
+ADCON1                            0000009F
+ADCS0                             00000006
+ADCS1                             00000007
+ADCS2                             00000006
+ADDEN                             00000003
+ADFM                              00000007
+ADIE                              00000006
+ADIF                              00000006
+ADON                              00000000
+ADRESH                            0000001E
+ADRESL                            0000009E
+AJUSTE                            00000600
+AJUSTE_ALARME                     0000067E
+ATIVA_ALARME                      000006FB
+ATRASO                            0000007C
+ATRASO_LOOP                       0000007E
+BCD27SEG                          00000500
+BCLIE                             00000003
+BCLIF                             00000003
+BF                                00000000
+BRGH                              00000002
+C                                 00000000
+C1INV                             00000004
+C1OUT                             00000006
+C2INV                             00000005
+C2OUT                             00000007
+CCP1CON                           00000017
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCP2CON                           0000001D
+CCP2IE                            00000000
+CCP2IF                            00000000
+CCP2M0                            00000000
+CCP2M1                            00000001
+CCP2M2                            00000002
+CCP2M3                            00000003
+CCP2X                             00000005
+CCP2Y                             00000004
+CCPR1                             00000015
+CCPR1H                            00000016
+CCPR1L                            00000015
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 16
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CCPR2                             0000001B
+CCPR2H                            0000001C
+CCPR2L                            0000001B
+CHS0                              00000003
+CHS1                              00000004
+CHS2                              00000005
+CIS                               00000003
+CKE                               00000006
+CKP                               00000004
+CM0                               00000000
+CM1                               00000001
+CM2                               00000002
+CMCON                             0000009C
+CMIE                              00000006
+CMIF                              00000006
+CREN                              00000004
+CSRC                              00000007
+CVR0                              00000000
+CVR1                              00000001
+CVR2                              00000002
+CVR3                              00000003
+CVRCON                            0000009D
+CVREN                             00000007
+CVROE                             00000006
+CVRR                              00000005
+D                                 00000005
+DATA_ADDRESS                      00000005
+DC                                00000001
+DHOR                              00000027
+DHORA                             0000002D
+DISPLAY                           00000200
+DMIN                              00000025
+DMINA                             0000002B
+DSEG                              00000023
+DSEGA                             00000029
+DSEGRE                            0000002E
+D_A                               00000005
+D_NOT_A                           00000005
+EEADR                             0000010D
+EEADRH                            0000010F
+EECON1                            0000018C
+EECON2                            0000018D
+EEDATA                            0000010C
+EEDATH                            0000010E
+EEIE                              00000004
+EEIF                              00000004
+EEPGD                             00000007
+F                                 00000001
+FERR                              00000002
+FLAGS                             00000032
+FSR                               00000004
+GCEN                              00000007
+GIE                               00000007
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 17
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+GO                                00000002
+GO_DONE                           00000002
+GO_NOT_DONE                       00000002
+I2C_DATA                          00000005
+I2C_READ                          00000002
+I2C_START                         00000003
+I2C_STOP                          00000004
+IBF                               00000007
+IBOV                              00000005
+INDF                              00000000
+INICIO                            00000033
+INTCON                            0000000B
+INTE                              00000004
+INTEDG                            00000006
+INTER                             00000300
+INTF                              00000001
+IRP                               00000007
+LOOP                              0000005B
+NOT_A                             00000005
+NOT_ADDRESS                       00000005
+NOT_BO                            00000000
+NOT_BOR                           00000000
+NOT_DONE                          00000002
+NOT_PD                            00000003
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_RC8                           00000006
+NOT_T1SYNC                        00000002
+NOT_TO                            00000004
+NOT_TX8                           00000006
+NOT_W                             00000002
+NOT_WRITE                         00000002
+OBF                               00000006
+OERR                              00000001
+OPTION_REG                        00000081
+P                                 00000004
+PCFG0                             00000000
+PCFG1                             00000001
+PCFG2                             00000002
+PCFG3                             00000003
+PCL                               00000002
+PCLATH                            0000000A
+PCON                              0000008E
+PEIE                              00000006
+PEN                               00000002
+PIE1                              0000008C
+PIE2                              0000008D
+PIR1                              0000000C
+PIR2                              0000000D
+PORTA                             00000005
+PORTB                             00000006
+PORTC                             00000007
+PORTD                             00000008
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 18
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+PORTE                             00000009
+PR2                               00000092
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+PSPIE                             00000007
+PSPIF                             00000007
+PSPMODE                           00000004
+R                                 00000002
+RA0                               00000000
+RA1                               00000001
+RA2                               00000002
+RA3                               00000003
+RA4                               00000004
+RA5                               00000005
+RB0                               00000000
+RB1                               00000001
+RB2                               00000002
+RB3                               00000003
+RB4                               00000004
+RB5                               00000005
+RB6                               00000006
+RB7                               00000007
+RBIE                              00000003
+RBIF                              00000000
+RC0                               00000000
+RC1                               00000001
+RC2                               00000002
+RC3                               00000003
+RC4                               00000004
+RC5                               00000005
+RC6                               00000006
+RC7                               00000007
+RC8_9                             00000006
+RC9                               00000006
+RCD8                              00000000
+RCEN                              00000003
+RCIE                              00000005
+RCIF                              00000005
+RCREG                             0000001A
+RCSTA                             00000018
+RD                                00000000
+RD0                               00000000
+RD1                               00000001
+RD2                               00000002
+RD3                               00000003
+RD4                               00000004
+RD5                               00000005
+RD6                               00000006
+RD7                               00000007
+RE0                               00000000
+RE1                               00000001
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 19
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+RE2                               00000002
+READ_WRITE                        00000002
+RP0                               00000005
+RP1                               00000006
+RSEN                              00000001
+RX9                               00000006
+RX9D                              00000000
+R_NOT_W                           00000002
+R_W                               00000002
+S                                 00000003
+SEN                               00000000
+SMP                               00000007
+SPBRG                             00000099
+SPEN                              00000007
+SREN                              00000005
+SSPADD                            00000093
+SSPBUF                            00000013
+SSPCON                            00000014
+SSPCON2                           00000091
+SSPEN                             00000005
+SSPIE                             00000003
+SSPIF                             00000003
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPOV                             00000006
+SSPSTAT                           00000094
+STATUS                            00000003
+SYNC                              00000004
+S_TEMP                            00000031
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0SE                              00000004
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000010
+T1INSYNC                          00000002
+T1OSCEN                           00000003
+T1SYNC                            00000002
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             00000012
+TEMP                              00000020
+TIMER                             00000400
+TMR0                              00000001
+TMR0IE                            00000005
+TMR0IF                            00000002
+TMR1CS                            00000001
+TMR1H                             0000000F
+TMR1IE                            00000000
+TMR1IF                            00000000
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 20
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TMR1L                             0000000E
+TMR1ON                            00000000
+TMR2                              00000011
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2ON                            00000002
+TOUTPS0                           00000003
+TOUTPS1                           00000004
+TOUTPS2                           00000005
+TOUTPS3                           00000006
+TRISA                             00000085
+TRISA0                            00000000
+TRISA1                            00000001
+TRISA2                            00000002
+TRISA3                            00000003
+TRISA4                            00000004
+TRISA5                            00000005
+TRISB                             00000086
+TRISB0                            00000000
+TRISB1                            00000001
+TRISB2                            00000002
+TRISB3                            00000003
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRISC                             00000087
+TRISC0                            00000000
+TRISC1                            00000001
+TRISC2                            00000002
+TRISC3                            00000003
+TRISC4                            00000004
+TRISC5                            00000005
+TRISC6                            00000006
+TRISC7                            00000007
+TRISD                             00000088
+TRISD0                            00000000
+TRISD1                            00000001
+TRISD2                            00000002
+TRISD3                            00000003
+TRISD4                            00000004
+TRISD5                            00000005
+TRISD6                            00000006
+TRISD7                            00000007
+TRISE                             00000089
+TRISE0                            00000000
+TRISE1                            00000001
+TRISE2                            00000002
+TRMT                              00000001
+TX8_9                             00000006
+TX9                               00000006
+TX9D                              00000000
+TXD8                              00000000
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 21
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXREG                             00000019
+TXSTA                             00000098
+UA                                00000001
+UHOR                              00000026
+UHORA                             0000002C
+UMIN                              00000024
+UMINA                             0000002A
+USEG                              00000022
+USEGA                             00000028
+W                                 00000000
+WCOL                              00000007
+WR                                00000001
+WREN                              00000002
+WRERR                             00000003
+W_TEMP                            00000030
+Z                                 00000002
+_BODEN_OFF                        00003FBF
+_BODEN_ON                         00003FFF
+_CONFIG                           00002007
+_CPD_OFF                          00003FFF
+_CPD_ON                           00003EFF
+_CP_ALL                           00001FFF
+_CP_OFF                           00003FFF
+_DEBUG_OFF                        00003FFF
+_DEBUG_ON                         000037FF
+_DEVID1                           00002006
+_HS_OSC                           00003FFE
+_IDLOC0                           00002000
+_IDLOC1                           00002001
+_IDLOC2                           00002002
+_IDLOC3                           00002003
+_LP_OSC                           00003FFC
+_LVP_OFF                          00003F7F
+_LVP_ON                           00003FFF
+_PWRTE_OFF                        00003FFF
+_PWRTE_ON                         00003FF7
+_RC_OSC                           00003FFF
+_WDT_OFF                          00003FFB
+_WDT_ON                           00003FFF
+_WRT_1FOURTH                      00003BFF
+_WRT_256                          00003DFF
+_WRT_HALF                         000039FF
+_WRT_OFF                          00003FFF
+_XT_OSC                           00003FFD
+__16F877A                         00000001
+MPASM  5.42           RELOGIO_DESPERTADOR.ASM   7-6-2025  0:28:59         PAGE 22
+
+
+MEMORY USAGE MAP ('X' = Used,  '-' = Unused)
+
+
+0000 : X---X----------- ---------------- XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0040 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0080 : XXX------------- ---------------- ---------------- ----------------
+0200 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXX-----------
+0300 : XXXXXXXXXXXXXX-- ---------------- ---------------- ----------------
+0400 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXX------------
+0500 : XXXXXXXXXXXX---- ---------------- ---------------- ----------------
+0600 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0640 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0680 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+06C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0700 : XXXXXXXXXXXXXXXX XXXXXX---------- ---------------- ----------------
+2000 : -------X-------- ---------------- ---------------- ----------------
+
+All other memory blocks unused.
+
+Program Memory Words Used:   510
+Program Memory Words Free:  7682
+
+
+Errors   :     0
+Warnings :     1 reported,     0 suppressed
+Messages :     6 reported,     0 suppressed
+
+
